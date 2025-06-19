@@ -1,0 +1,616 @@
+from http import HTTPStatus
+from typing import Any, Optional, Union
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.get_video_list_request import GetVideoListRequest
+from ...models.http_validation_error import HTTPValidationError
+from ...models.response_model import ResponseModel
+from ...types import Response
+
+
+def _get_kwargs(
+    *,
+    body: GetVideoListRequest,
+) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
+    _kwargs: dict[str, Any] = {
+        "method": "post",
+        "url": "/api/v1/tiktok/creator/get_video_list_analytics",
+    }
+
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
+    return _kwargs
+
+
+def _parse_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    if response.status_code == 200:
+        response_200 = ResponseModel.from_dict(response.json())
+
+        return response_200
+    if response.status_code == 422:
+        response_422 = HTTPValidationError.from_dict(response.json())
+
+        return response_422
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+def sync_detailed(
+    *,
+    client: AuthenticatedClient,
+    body: GetVideoListRequest,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取创作者视频列表分析/Get Creator Video List Analytics
+
+     # [中文]
+    ### 用途:
+    - 获取 TikTok Shop 创作者账号在指定时间范围内发布的视频列表及其详细数据表现。
+    - 支持分页查询，每页返回指定时间段内的视频及其播放、成交等详细数据。
+
+    ### 返回内容说明:
+    - `segments`（分段数据列表）:
+      - `time_selector`: 查询时间范围（起止时间戳、时区、语言等）
+      - `filter.creator_id`: 创作者账号 ID
+      - `list_control`:
+        - `rules`: 列表排序规则（通常按发布时间降序）
+        - `next_pagination`: 翻页信息（是否有更多页，当前页，总页数，总记录数）
+      - `timed_lists`: 每个时间段内的视频数据，包括：
+        - `video_meta`:
+          - `item_id`: 视频 Item ID
+          - `name`: 视频标题
+          - `publish_time`: 视频发布时间（Unix 时间戳）
+          - `duration`: 视频时长（秒）
+          - `video_play_info`: 视频播放资源信息（封面图、播放链接等）
+        - `new_follower_cnt`: 视频期间新增粉丝数
+        - `vv_cnt`: 视频播放量
+        - `ctr`: 商品点击率（Click Through Rate）
+        - `gmv.amount`: 视频带货产生的总 GMV 金额
+        - `item_sold_cnt`: 视频带动的商品售出数量
+        - `direct_gmv.amount`: 直接带货 GMV
+        - `completion_rate`: 视频观看完成率
+
+    ### 备注:
+    - 此接口仅适用于 TikTok Shop 创作者账号。
+    - 数据按自然日或周分组，且每条视频数据对应一段时间内的统计值。
+
+    ### 参数:
+    - cookie: 用户 Cookie 字符串（用于身份认证）
+    - start_date: 查询起始日期，格式为 'MM-DD-YYYY'，如 '04-01-2025'
+    - page: 页码，默认为第一页 `0`
+    - rules: 列表排序规则，默认按发布时间排序，可选值如下：
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`：按发布时间排序
+        - `\"VIDEO_LIST_GMV\"`：按商品交易总额排序
+        - `\"VIDEO_LIST_DIRECT_GMV\"`：按直接商品交易总额排序
+        - `\"VIDEO_LIST_VV_CNT\"`：按观看人次数排序
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`：按成交件数排序
+        - `\"VIDEO_LIST_CTR\"`：按商品点击率排序
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`：按观看完播率排序
+        - `\"VIDEO_LIST_LIKE_CNT\"`：按点赞数排序
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`：按新增粉丝数排序
+    - proxy: 可选 HTTP 代理地址，如不使用可省略
+        - 示例格式: `http://username:password@host:port`
+
+    ### 返回:
+    - 创作者账号视频列表及详细分析数据
+
+    # [English]
+    ### Purpose:
+    - Retrieve a list of videos published by a TikTok Shop creator account within a specified time
+    range, along with detailed performance metrics.
+    - Supports pagination to fetch multiple pages of video records within the given time range.
+
+    ### Response Fields:
+    - `segments` (List of segmented data):
+      - `time_selector`: Time range settings (start/end timestamps, timezone, locale)
+      - `filter.creator_id`: Creator account ID
+      - `list_control`:
+        - `rules`: List sorting rules (typically by publish time descending)
+        - `next_pagination`: Pagination information (has more pages, current page, total pages, total
+    records)
+      - `timed_lists`: List of videos for each time range, including:
+        - `video_meta`:
+          - `item_id`: Video Item ID
+          - `name`: Video title
+          - `publish_time`: Video publish time (Unix timestamp)
+          - `duration`: Video duration (seconds)
+          - `video_play_info`: Video play resources (cover image, playback URL, etc.)
+        - `new_follower_cnt`: Number of new followers during the video's period
+        - `vv_cnt`: Video views count
+        - `ctr`: Click Through Rate for associated products
+        - `gmv.amount`: Gross Merchandise Value generated by the video
+        - `item_sold_cnt`: Number of items sold due to the video
+        - `direct_gmv.amount`: Direct GMV from the video
+        - `completion_rate`: Video completion rate
+
+    ### Notes:
+    - This API is only available for TikTok Shop creator accounts.
+    - Data is grouped by natural day or week, and each video's stats represent the corresponding period.
+
+    ### Parameters:
+    - cookie: User Cookie string for authentication
+    - start_date: Query start date, formatted as 'MM-DD-YYYY', e.g., '04-01-2025'
+    - page: Page number, default is the first page `0`
+    - rules: List sorting rules, default is by publish time. Available options:
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`: Sort by video publish time
+        - `\"VIDEO_LIST_GMV\"`: Sort by gross merchandise value (GMV)
+        - `\"VIDEO_LIST_DIRECT_GMV\"`: Sort by direct GMV
+        - `\"VIDEO_LIST_VV_CNT\"`: Sort by video view count
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`: Sort by number of items sold
+        - `\"VIDEO_LIST_CTR\"`: Sort by click-through rate
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`: Sort by video completion rate
+        - `\"VIDEO_LIST_LIKE_CNT\"`: Sort by number of likes
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`: Sort by number of new followers
+    - proxy: Optional HTTP proxy address, can be omitted if not used
+        - Example format: `http://username:password@host:port`
+
+    ### Return:
+    - Detailed video list and performance analysis for the creator account
+
+    # [示例/Example]
+    ```json
+    {
+      \"cookie\": \"your_cookie\",
+      \"start_date\": \"04-01-2025\",
+      \"page\": 0
+    }
+    ```
+
+    Args:
+        body (GetVideoListRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        body=body,
+    )
+
+    response = client.get_httpx_client().request(
+        **kwargs,
+    )
+
+    return _build_response(client=client, response=response)
+
+
+def sync(
+    *,
+    client: AuthenticatedClient,
+    body: GetVideoListRequest,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取创作者视频列表分析/Get Creator Video List Analytics
+
+     # [中文]
+    ### 用途:
+    - 获取 TikTok Shop 创作者账号在指定时间范围内发布的视频列表及其详细数据表现。
+    - 支持分页查询，每页返回指定时间段内的视频及其播放、成交等详细数据。
+
+    ### 返回内容说明:
+    - `segments`（分段数据列表）:
+      - `time_selector`: 查询时间范围（起止时间戳、时区、语言等）
+      - `filter.creator_id`: 创作者账号 ID
+      - `list_control`:
+        - `rules`: 列表排序规则（通常按发布时间降序）
+        - `next_pagination`: 翻页信息（是否有更多页，当前页，总页数，总记录数）
+      - `timed_lists`: 每个时间段内的视频数据，包括：
+        - `video_meta`:
+          - `item_id`: 视频 Item ID
+          - `name`: 视频标题
+          - `publish_time`: 视频发布时间（Unix 时间戳）
+          - `duration`: 视频时长（秒）
+          - `video_play_info`: 视频播放资源信息（封面图、播放链接等）
+        - `new_follower_cnt`: 视频期间新增粉丝数
+        - `vv_cnt`: 视频播放量
+        - `ctr`: 商品点击率（Click Through Rate）
+        - `gmv.amount`: 视频带货产生的总 GMV 金额
+        - `item_sold_cnt`: 视频带动的商品售出数量
+        - `direct_gmv.amount`: 直接带货 GMV
+        - `completion_rate`: 视频观看完成率
+
+    ### 备注:
+    - 此接口仅适用于 TikTok Shop 创作者账号。
+    - 数据按自然日或周分组，且每条视频数据对应一段时间内的统计值。
+
+    ### 参数:
+    - cookie: 用户 Cookie 字符串（用于身份认证）
+    - start_date: 查询起始日期，格式为 'MM-DD-YYYY'，如 '04-01-2025'
+    - page: 页码，默认为第一页 `0`
+    - rules: 列表排序规则，默认按发布时间排序，可选值如下：
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`：按发布时间排序
+        - `\"VIDEO_LIST_GMV\"`：按商品交易总额排序
+        - `\"VIDEO_LIST_DIRECT_GMV\"`：按直接商品交易总额排序
+        - `\"VIDEO_LIST_VV_CNT\"`：按观看人次数排序
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`：按成交件数排序
+        - `\"VIDEO_LIST_CTR\"`：按商品点击率排序
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`：按观看完播率排序
+        - `\"VIDEO_LIST_LIKE_CNT\"`：按点赞数排序
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`：按新增粉丝数排序
+    - proxy: 可选 HTTP 代理地址，如不使用可省略
+        - 示例格式: `http://username:password@host:port`
+
+    ### 返回:
+    - 创作者账号视频列表及详细分析数据
+
+    # [English]
+    ### Purpose:
+    - Retrieve a list of videos published by a TikTok Shop creator account within a specified time
+    range, along with detailed performance metrics.
+    - Supports pagination to fetch multiple pages of video records within the given time range.
+
+    ### Response Fields:
+    - `segments` (List of segmented data):
+      - `time_selector`: Time range settings (start/end timestamps, timezone, locale)
+      - `filter.creator_id`: Creator account ID
+      - `list_control`:
+        - `rules`: List sorting rules (typically by publish time descending)
+        - `next_pagination`: Pagination information (has more pages, current page, total pages, total
+    records)
+      - `timed_lists`: List of videos for each time range, including:
+        - `video_meta`:
+          - `item_id`: Video Item ID
+          - `name`: Video title
+          - `publish_time`: Video publish time (Unix timestamp)
+          - `duration`: Video duration (seconds)
+          - `video_play_info`: Video play resources (cover image, playback URL, etc.)
+        - `new_follower_cnt`: Number of new followers during the video's period
+        - `vv_cnt`: Video views count
+        - `ctr`: Click Through Rate for associated products
+        - `gmv.amount`: Gross Merchandise Value generated by the video
+        - `item_sold_cnt`: Number of items sold due to the video
+        - `direct_gmv.amount`: Direct GMV from the video
+        - `completion_rate`: Video completion rate
+
+    ### Notes:
+    - This API is only available for TikTok Shop creator accounts.
+    - Data is grouped by natural day or week, and each video's stats represent the corresponding period.
+
+    ### Parameters:
+    - cookie: User Cookie string for authentication
+    - start_date: Query start date, formatted as 'MM-DD-YYYY', e.g., '04-01-2025'
+    - page: Page number, default is the first page `0`
+    - rules: List sorting rules, default is by publish time. Available options:
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`: Sort by video publish time
+        - `\"VIDEO_LIST_GMV\"`: Sort by gross merchandise value (GMV)
+        - `\"VIDEO_LIST_DIRECT_GMV\"`: Sort by direct GMV
+        - `\"VIDEO_LIST_VV_CNT\"`: Sort by video view count
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`: Sort by number of items sold
+        - `\"VIDEO_LIST_CTR\"`: Sort by click-through rate
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`: Sort by video completion rate
+        - `\"VIDEO_LIST_LIKE_CNT\"`: Sort by number of likes
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`: Sort by number of new followers
+    - proxy: Optional HTTP proxy address, can be omitted if not used
+        - Example format: `http://username:password@host:port`
+
+    ### Return:
+    - Detailed video list and performance analysis for the creator account
+
+    # [示例/Example]
+    ```json
+    {
+      \"cookie\": \"your_cookie\",
+      \"start_date\": \"04-01-2025\",
+      \"page\": 0
+    }
+    ```
+
+    Args:
+        body (GetVideoListRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return sync_detailed(
+        client=client,
+        body=body,
+    ).parsed
+
+
+async def asyncio_detailed(
+    *,
+    client: AuthenticatedClient,
+    body: GetVideoListRequest,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取创作者视频列表分析/Get Creator Video List Analytics
+
+     # [中文]
+    ### 用途:
+    - 获取 TikTok Shop 创作者账号在指定时间范围内发布的视频列表及其详细数据表现。
+    - 支持分页查询，每页返回指定时间段内的视频及其播放、成交等详细数据。
+
+    ### 返回内容说明:
+    - `segments`（分段数据列表）:
+      - `time_selector`: 查询时间范围（起止时间戳、时区、语言等）
+      - `filter.creator_id`: 创作者账号 ID
+      - `list_control`:
+        - `rules`: 列表排序规则（通常按发布时间降序）
+        - `next_pagination`: 翻页信息（是否有更多页，当前页，总页数，总记录数）
+      - `timed_lists`: 每个时间段内的视频数据，包括：
+        - `video_meta`:
+          - `item_id`: 视频 Item ID
+          - `name`: 视频标题
+          - `publish_time`: 视频发布时间（Unix 时间戳）
+          - `duration`: 视频时长（秒）
+          - `video_play_info`: 视频播放资源信息（封面图、播放链接等）
+        - `new_follower_cnt`: 视频期间新增粉丝数
+        - `vv_cnt`: 视频播放量
+        - `ctr`: 商品点击率（Click Through Rate）
+        - `gmv.amount`: 视频带货产生的总 GMV 金额
+        - `item_sold_cnt`: 视频带动的商品售出数量
+        - `direct_gmv.amount`: 直接带货 GMV
+        - `completion_rate`: 视频观看完成率
+
+    ### 备注:
+    - 此接口仅适用于 TikTok Shop 创作者账号。
+    - 数据按自然日或周分组，且每条视频数据对应一段时间内的统计值。
+
+    ### 参数:
+    - cookie: 用户 Cookie 字符串（用于身份认证）
+    - start_date: 查询起始日期，格式为 'MM-DD-YYYY'，如 '04-01-2025'
+    - page: 页码，默认为第一页 `0`
+    - rules: 列表排序规则，默认按发布时间排序，可选值如下：
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`：按发布时间排序
+        - `\"VIDEO_LIST_GMV\"`：按商品交易总额排序
+        - `\"VIDEO_LIST_DIRECT_GMV\"`：按直接商品交易总额排序
+        - `\"VIDEO_LIST_VV_CNT\"`：按观看人次数排序
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`：按成交件数排序
+        - `\"VIDEO_LIST_CTR\"`：按商品点击率排序
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`：按观看完播率排序
+        - `\"VIDEO_LIST_LIKE_CNT\"`：按点赞数排序
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`：按新增粉丝数排序
+    - proxy: 可选 HTTP 代理地址，如不使用可省略
+        - 示例格式: `http://username:password@host:port`
+
+    ### 返回:
+    - 创作者账号视频列表及详细分析数据
+
+    # [English]
+    ### Purpose:
+    - Retrieve a list of videos published by a TikTok Shop creator account within a specified time
+    range, along with detailed performance metrics.
+    - Supports pagination to fetch multiple pages of video records within the given time range.
+
+    ### Response Fields:
+    - `segments` (List of segmented data):
+      - `time_selector`: Time range settings (start/end timestamps, timezone, locale)
+      - `filter.creator_id`: Creator account ID
+      - `list_control`:
+        - `rules`: List sorting rules (typically by publish time descending)
+        - `next_pagination`: Pagination information (has more pages, current page, total pages, total
+    records)
+      - `timed_lists`: List of videos for each time range, including:
+        - `video_meta`:
+          - `item_id`: Video Item ID
+          - `name`: Video title
+          - `publish_time`: Video publish time (Unix timestamp)
+          - `duration`: Video duration (seconds)
+          - `video_play_info`: Video play resources (cover image, playback URL, etc.)
+        - `new_follower_cnt`: Number of new followers during the video's period
+        - `vv_cnt`: Video views count
+        - `ctr`: Click Through Rate for associated products
+        - `gmv.amount`: Gross Merchandise Value generated by the video
+        - `item_sold_cnt`: Number of items sold due to the video
+        - `direct_gmv.amount`: Direct GMV from the video
+        - `completion_rate`: Video completion rate
+
+    ### Notes:
+    - This API is only available for TikTok Shop creator accounts.
+    - Data is grouped by natural day or week, and each video's stats represent the corresponding period.
+
+    ### Parameters:
+    - cookie: User Cookie string for authentication
+    - start_date: Query start date, formatted as 'MM-DD-YYYY', e.g., '04-01-2025'
+    - page: Page number, default is the first page `0`
+    - rules: List sorting rules, default is by publish time. Available options:
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`: Sort by video publish time
+        - `\"VIDEO_LIST_GMV\"`: Sort by gross merchandise value (GMV)
+        - `\"VIDEO_LIST_DIRECT_GMV\"`: Sort by direct GMV
+        - `\"VIDEO_LIST_VV_CNT\"`: Sort by video view count
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`: Sort by number of items sold
+        - `\"VIDEO_LIST_CTR\"`: Sort by click-through rate
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`: Sort by video completion rate
+        - `\"VIDEO_LIST_LIKE_CNT\"`: Sort by number of likes
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`: Sort by number of new followers
+    - proxy: Optional HTTP proxy address, can be omitted if not used
+        - Example format: `http://username:password@host:port`
+
+    ### Return:
+    - Detailed video list and performance analysis for the creator account
+
+    # [示例/Example]
+    ```json
+    {
+      \"cookie\": \"your_cookie\",
+      \"start_date\": \"04-01-2025\",
+      \"page\": 0
+    }
+    ```
+
+    Args:
+        body (GetVideoListRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        body=body,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    *,
+    client: AuthenticatedClient,
+    body: GetVideoListRequest,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取创作者视频列表分析/Get Creator Video List Analytics
+
+     # [中文]
+    ### 用途:
+    - 获取 TikTok Shop 创作者账号在指定时间范围内发布的视频列表及其详细数据表现。
+    - 支持分页查询，每页返回指定时间段内的视频及其播放、成交等详细数据。
+
+    ### 返回内容说明:
+    - `segments`（分段数据列表）:
+      - `time_selector`: 查询时间范围（起止时间戳、时区、语言等）
+      - `filter.creator_id`: 创作者账号 ID
+      - `list_control`:
+        - `rules`: 列表排序规则（通常按发布时间降序）
+        - `next_pagination`: 翻页信息（是否有更多页，当前页，总页数，总记录数）
+      - `timed_lists`: 每个时间段内的视频数据，包括：
+        - `video_meta`:
+          - `item_id`: 视频 Item ID
+          - `name`: 视频标题
+          - `publish_time`: 视频发布时间（Unix 时间戳）
+          - `duration`: 视频时长（秒）
+          - `video_play_info`: 视频播放资源信息（封面图、播放链接等）
+        - `new_follower_cnt`: 视频期间新增粉丝数
+        - `vv_cnt`: 视频播放量
+        - `ctr`: 商品点击率（Click Through Rate）
+        - `gmv.amount`: 视频带货产生的总 GMV 金额
+        - `item_sold_cnt`: 视频带动的商品售出数量
+        - `direct_gmv.amount`: 直接带货 GMV
+        - `completion_rate`: 视频观看完成率
+
+    ### 备注:
+    - 此接口仅适用于 TikTok Shop 创作者账号。
+    - 数据按自然日或周分组，且每条视频数据对应一段时间内的统计值。
+
+    ### 参数:
+    - cookie: 用户 Cookie 字符串（用于身份认证）
+    - start_date: 查询起始日期，格式为 'MM-DD-YYYY'，如 '04-01-2025'
+    - page: 页码，默认为第一页 `0`
+    - rules: 列表排序规则，默认按发布时间排序，可选值如下：
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`：按发布时间排序
+        - `\"VIDEO_LIST_GMV\"`：按商品交易总额排序
+        - `\"VIDEO_LIST_DIRECT_GMV\"`：按直接商品交易总额排序
+        - `\"VIDEO_LIST_VV_CNT\"`：按观看人次数排序
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`：按成交件数排序
+        - `\"VIDEO_LIST_CTR\"`：按商品点击率排序
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`：按观看完播率排序
+        - `\"VIDEO_LIST_LIKE_CNT\"`：按点赞数排序
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`：按新增粉丝数排序
+    - proxy: 可选 HTTP 代理地址，如不使用可省略
+        - 示例格式: `http://username:password@host:port`
+
+    ### 返回:
+    - 创作者账号视频列表及详细分析数据
+
+    # [English]
+    ### Purpose:
+    - Retrieve a list of videos published by a TikTok Shop creator account within a specified time
+    range, along with detailed performance metrics.
+    - Supports pagination to fetch multiple pages of video records within the given time range.
+
+    ### Response Fields:
+    - `segments` (List of segmented data):
+      - `time_selector`: Time range settings (start/end timestamps, timezone, locale)
+      - `filter.creator_id`: Creator account ID
+      - `list_control`:
+        - `rules`: List sorting rules (typically by publish time descending)
+        - `next_pagination`: Pagination information (has more pages, current page, total pages, total
+    records)
+      - `timed_lists`: List of videos for each time range, including:
+        - `video_meta`:
+          - `item_id`: Video Item ID
+          - `name`: Video title
+          - `publish_time`: Video publish time (Unix timestamp)
+          - `duration`: Video duration (seconds)
+          - `video_play_info`: Video play resources (cover image, playback URL, etc.)
+        - `new_follower_cnt`: Number of new followers during the video's period
+        - `vv_cnt`: Video views count
+        - `ctr`: Click Through Rate for associated products
+        - `gmv.amount`: Gross Merchandise Value generated by the video
+        - `item_sold_cnt`: Number of items sold due to the video
+        - `direct_gmv.amount`: Direct GMV from the video
+        - `completion_rate`: Video completion rate
+
+    ### Notes:
+    - This API is only available for TikTok Shop creator accounts.
+    - Data is grouped by natural day or week, and each video's stats represent the corresponding period.
+
+    ### Parameters:
+    - cookie: User Cookie string for authentication
+    - start_date: Query start date, formatted as 'MM-DD-YYYY', e.g., '04-01-2025'
+    - page: Page number, default is the first page `0`
+    - rules: List sorting rules, default is by publish time. Available options:
+        - `\"VIDEO_LIST_PUBLISH_TIME\"`: Sort by video publish time
+        - `\"VIDEO_LIST_GMV\"`: Sort by gross merchandise value (GMV)
+        - `\"VIDEO_LIST_DIRECT_GMV\"`: Sort by direct GMV
+        - `\"VIDEO_LIST_VV_CNT\"`: Sort by video view count
+        - `\"VIDEO_LIST_ITEM_SOLD_CNT\"`: Sort by number of items sold
+        - `\"VIDEO_LIST_CTR\"`: Sort by click-through rate
+        - `\"VIDEO_LIST_COMPLETION_RATE\"`: Sort by video completion rate
+        - `\"VIDEO_LIST_LIKE_CNT\"`: Sort by number of likes
+        - `\"VIDEO_LIST_NEW_FOLLOWER_CNT\"`: Sort by number of new followers
+    - proxy: Optional HTTP proxy address, can be omitted if not used
+        - Example format: `http://username:password@host:port`
+
+    ### Return:
+    - Detailed video list and performance analysis for the creator account
+
+    # [示例/Example]
+    ```json
+    {
+      \"cookie\": \"your_cookie\",
+      \"start_date\": \"04-01-2025\",
+      \"page\": 0
+    }
+    ```
+
+    Args:
+        body (GetVideoListRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return (
+        await asyncio_detailed(
+            client=client,
+            body=body,
+        )
+    ).parsed

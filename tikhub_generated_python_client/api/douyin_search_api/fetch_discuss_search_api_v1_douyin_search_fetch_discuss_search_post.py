@@ -1,0 +1,900 @@
+from http import HTTPStatus
+from typing import Any, Optional, Union
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.discuss_search_request import DiscussSearchRequest
+from ...models.http_validation_error import HTTPValidationError
+from ...models.response_model import ResponseModel
+from ...types import Response
+
+
+def _get_kwargs(
+    *,
+    body: DiscussSearchRequest,
+) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
+    _kwargs: dict[str, Any] = {
+        "method": "post",
+        "url": "/api/v1/douyin/search/fetch_discuss_search",
+    }
+
+    _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
+    return _kwargs
+
+
+def _parse_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    if response.status_code == 200:
+        response_200 = ResponseModel.from_dict(response.json())
+
+        return response_200
+    if response.status_code == 422:
+        response_422 = HTTPValidationError.from_dict(response.json())
+
+        return response_422
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+def sync_detailed(
+    *,
+    client: AuthenticatedClient,
+    body: DiscussSearchRequest,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取讨论搜索/Fetch discussion search
+
+     # [中文]
+    ### 用途:
+    - 获取抖音 App 中讨论区/问答内容的搜索结果。
+    - 支持关键词、排序方式、发布时间、内容类型等筛选条件。
+
+    ### 备注:
+    - 此接口专注于讨论区内容搜索（如问答讨论视频），不包含其他类型的内容。
+    - 初次请求时 `cursor` 传入 0，`search_id` 传空字符串。
+    - 返回内容包括视频信息、作者信息、播放信息、互动数据、话题标签等。
+
+    ### 参数:
+    - keyword: 搜索关键词，例如 \"出国留学\"
+    - cursor: 翻页游标（首次请求传 0，翻页时使用上次响应的 cursor）
+    - sort_type: 排序方式
+      - `0`: 综合排序
+      - `1`: 最多点赞
+      - `2`: 最新发布
+    - publish_time: 发布时间筛选
+      - `0`: 不限
+      - `1`: 最近一天
+      - `7`: 最近一周
+      - `180`: 最近半年
+    - filter_duration: 视频时长筛选
+      - `0`: 不限
+      - `0-1`: 1 分钟以内
+      - `1-5`: 1-5 分钟
+      - `5-10000`: 5 分钟以上
+    - content_type: 内容类型筛选
+      - `0`: 不限
+      - `1`: 视频
+      - `2`: 图片
+      - `3`: 文章
+    - search_id: 搜索ID（分页时使用）
+
+    ### 请求体示例：
+    ```json
+    payload = {
+        \"keyword\": \"出国留学\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### 返回（部分常用字段，实际返回字段更多，一切以实际响应为准）:
+    - `data`: 搜索结果列表
+      - `type`: 结果类型（一般为 `1`）
+      - `aweme_info`: 视频信息
+        - `aweme_id`: 视频ID
+        - `desc`: 视频描述内容
+        - `author`: 作者信息
+          - `uid`: 用户唯一ID
+          - `nickname`: 用户昵称
+          - `is_verified`: 是否认证用户
+          - `region`: 用户地区
+          - `avatar_thumb.url_list`: 缩略头像列表
+          - `avatar_medium.url_list`: 中等尺寸头像列表
+          - `avatar_larger.url_list`: 高清头像列表
+        - `video`: 视频播放与封面信息
+          - `play_addr.url_list`: 播放地址列表
+          - `cover.url_list`: 视频封面列表
+          - `dynamic_cover.url_list`: 动态封面列表
+          - `origin_cover.url_list`: 原始封面列表
+          - `width`: 视频宽度（像素）
+          - `height`: 视频高度（像素）
+          - `ratio`: 视频分辨率比例（如540p）
+          - `duration`: 视频时长（毫秒）
+          - `download_addr.url_list`: 带水印下载地址
+        - `statistics`: 视频数据
+          - `comment_count`: 评论数
+          - `digg_count`: 点赞数
+          - `share_count`: 分享数
+          - `play_count`: 播放次数
+          - `collect_count`: 收藏次数
+        - `cha_list`: 话题标签
+          - `cha_name`: 标签名称
+          - `share_url`: 标签分享链接
+        - `music`: 音乐信息
+          - `id_str`: 音乐ID
+          - `title`: 音乐标题
+          - `author`: 音乐作者昵称
+          - `play_url.url_list`: 音乐播放链接列表
+        - `status`: 视频状态
+          - `is_delete`: 是否被删除
+          - `is_private`: 是否设为私密
+          - `allow_share`: 是否允许分享
+          - `allow_comment`: 是否允许评论
+        - `share_url`: 视频外部分享链接
+
+    # [English]
+    ### Purpose:
+    - Fetch discussion/Q&A search results from Douyin App.
+    - Supports filtering by keyword, sort type, publish time, content type, etc.
+
+    ### Notes:
+    - This API focuses on discussion and Q&A content, not including other content types.
+    - Set `cursor` to 0 and `search_id` to an empty string for the first request.
+    - The response includes video details, author info, playback info, statistics, hashtags, etc.
+
+    ### Parameters:
+    - keyword: Search keyword, e.g., \"study abroad\"
+    - cursor: Pagination cursor (0 for first page, use the last response cursor for subsequent pages)
+    - sort_type: Sorting method
+      - `0`: Comprehensive
+      - `1`: Most likes
+      - `2`: Latest
+    - publish_time: Publish time filter
+      - `0`: Unlimited
+      - `1`: Last day
+      - `7`: Last week
+      - `180`: Last half year
+    - filter_duration: Video duration filter
+      - `0`: Unlimited
+      - `0-1`: Within 1 minute
+      - `1-5`: 1 to 5 minutes
+      - `5-10000`: More than 5 minutes
+    - content_type: Content type filter
+      - `0`: Unlimited
+      - `1`: Video
+      - `2`: Picture
+      - `3`: Article
+    - search_id: Search ID used for pagination
+
+    ### Request Body Example:
+    ```json
+    payload = {
+        \"keyword\": \"study abroad\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### Response (common fields, actual response may contain more fields):
+    - `data`: List of search result items
+      - `type`: Result type (usually `1`)
+      - `aweme_info`: Video information
+        - `aweme_id`: Video ID
+        - `desc`: Description
+        - `author`:
+          - `uid`: User ID
+          - `nickname`: User nickname
+          - `is_verified`: Verified user or not
+          - `region`: User region
+          - `avatar_thumb.url_list`: Thumbnail avatar URLs
+          - `avatar_medium.url_list`: Medium avatar URLs
+          - `avatar_larger.url_list`: Large avatar URLs
+        - `video`:
+          - `play_addr.url_list`: Video playback URLs
+          - `cover.url_list`: Video cover URLs
+          - `dynamic_cover.url_list`: Dynamic cover URLs
+          - `origin_cover.url_list`: Original cover URLs
+          - `width`: Width in pixels
+          - `height`: Height in pixels
+          - `ratio`: Resolution ratio (e.g., 540p)
+          - `duration`: Duration in milliseconds
+          - `download_addr.url_list`: Download URLs with watermark
+        - `statistics`:
+          - `comment_count`: Number of comments
+          - `digg_count`: Number of likes
+          - `share_count`: Number of shares
+          - `play_count`: Number of plays
+          - `collect_count`: Number of collections
+        - `cha_list`:
+          - `cha_name`: Hashtag name
+          - `share_url`: Hashtag share link
+        - `music`:
+          - `id_str`: Music ID
+          - `title`: Music title
+          - `author`: Music creator name
+          - `play_url.url_list`: List of music playback URLs
+        - `status`:
+          - `is_delete`: Whether deleted
+          - `is_private`: Whether private
+          - `allow_share`: Allow sharing
+          - `allow_comment`: Allow commenting
+        - `share_url`: External video share link
+
+    Args:
+        body (DiscussSearchRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        body=body,
+    )
+
+    response = client.get_httpx_client().request(
+        **kwargs,
+    )
+
+    return _build_response(client=client, response=response)
+
+
+def sync(
+    *,
+    client: AuthenticatedClient,
+    body: DiscussSearchRequest,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取讨论搜索/Fetch discussion search
+
+     # [中文]
+    ### 用途:
+    - 获取抖音 App 中讨论区/问答内容的搜索结果。
+    - 支持关键词、排序方式、发布时间、内容类型等筛选条件。
+
+    ### 备注:
+    - 此接口专注于讨论区内容搜索（如问答讨论视频），不包含其他类型的内容。
+    - 初次请求时 `cursor` 传入 0，`search_id` 传空字符串。
+    - 返回内容包括视频信息、作者信息、播放信息、互动数据、话题标签等。
+
+    ### 参数:
+    - keyword: 搜索关键词，例如 \"出国留学\"
+    - cursor: 翻页游标（首次请求传 0，翻页时使用上次响应的 cursor）
+    - sort_type: 排序方式
+      - `0`: 综合排序
+      - `1`: 最多点赞
+      - `2`: 最新发布
+    - publish_time: 发布时间筛选
+      - `0`: 不限
+      - `1`: 最近一天
+      - `7`: 最近一周
+      - `180`: 最近半年
+    - filter_duration: 视频时长筛选
+      - `0`: 不限
+      - `0-1`: 1 分钟以内
+      - `1-5`: 1-5 分钟
+      - `5-10000`: 5 分钟以上
+    - content_type: 内容类型筛选
+      - `0`: 不限
+      - `1`: 视频
+      - `2`: 图片
+      - `3`: 文章
+    - search_id: 搜索ID（分页时使用）
+
+    ### 请求体示例：
+    ```json
+    payload = {
+        \"keyword\": \"出国留学\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### 返回（部分常用字段，实际返回字段更多，一切以实际响应为准）:
+    - `data`: 搜索结果列表
+      - `type`: 结果类型（一般为 `1`）
+      - `aweme_info`: 视频信息
+        - `aweme_id`: 视频ID
+        - `desc`: 视频描述内容
+        - `author`: 作者信息
+          - `uid`: 用户唯一ID
+          - `nickname`: 用户昵称
+          - `is_verified`: 是否认证用户
+          - `region`: 用户地区
+          - `avatar_thumb.url_list`: 缩略头像列表
+          - `avatar_medium.url_list`: 中等尺寸头像列表
+          - `avatar_larger.url_list`: 高清头像列表
+        - `video`: 视频播放与封面信息
+          - `play_addr.url_list`: 播放地址列表
+          - `cover.url_list`: 视频封面列表
+          - `dynamic_cover.url_list`: 动态封面列表
+          - `origin_cover.url_list`: 原始封面列表
+          - `width`: 视频宽度（像素）
+          - `height`: 视频高度（像素）
+          - `ratio`: 视频分辨率比例（如540p）
+          - `duration`: 视频时长（毫秒）
+          - `download_addr.url_list`: 带水印下载地址
+        - `statistics`: 视频数据
+          - `comment_count`: 评论数
+          - `digg_count`: 点赞数
+          - `share_count`: 分享数
+          - `play_count`: 播放次数
+          - `collect_count`: 收藏次数
+        - `cha_list`: 话题标签
+          - `cha_name`: 标签名称
+          - `share_url`: 标签分享链接
+        - `music`: 音乐信息
+          - `id_str`: 音乐ID
+          - `title`: 音乐标题
+          - `author`: 音乐作者昵称
+          - `play_url.url_list`: 音乐播放链接列表
+        - `status`: 视频状态
+          - `is_delete`: 是否被删除
+          - `is_private`: 是否设为私密
+          - `allow_share`: 是否允许分享
+          - `allow_comment`: 是否允许评论
+        - `share_url`: 视频外部分享链接
+
+    # [English]
+    ### Purpose:
+    - Fetch discussion/Q&A search results from Douyin App.
+    - Supports filtering by keyword, sort type, publish time, content type, etc.
+
+    ### Notes:
+    - This API focuses on discussion and Q&A content, not including other content types.
+    - Set `cursor` to 0 and `search_id` to an empty string for the first request.
+    - The response includes video details, author info, playback info, statistics, hashtags, etc.
+
+    ### Parameters:
+    - keyword: Search keyword, e.g., \"study abroad\"
+    - cursor: Pagination cursor (0 for first page, use the last response cursor for subsequent pages)
+    - sort_type: Sorting method
+      - `0`: Comprehensive
+      - `1`: Most likes
+      - `2`: Latest
+    - publish_time: Publish time filter
+      - `0`: Unlimited
+      - `1`: Last day
+      - `7`: Last week
+      - `180`: Last half year
+    - filter_duration: Video duration filter
+      - `0`: Unlimited
+      - `0-1`: Within 1 minute
+      - `1-5`: 1 to 5 minutes
+      - `5-10000`: More than 5 minutes
+    - content_type: Content type filter
+      - `0`: Unlimited
+      - `1`: Video
+      - `2`: Picture
+      - `3`: Article
+    - search_id: Search ID used for pagination
+
+    ### Request Body Example:
+    ```json
+    payload = {
+        \"keyword\": \"study abroad\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### Response (common fields, actual response may contain more fields):
+    - `data`: List of search result items
+      - `type`: Result type (usually `1`)
+      - `aweme_info`: Video information
+        - `aweme_id`: Video ID
+        - `desc`: Description
+        - `author`:
+          - `uid`: User ID
+          - `nickname`: User nickname
+          - `is_verified`: Verified user or not
+          - `region`: User region
+          - `avatar_thumb.url_list`: Thumbnail avatar URLs
+          - `avatar_medium.url_list`: Medium avatar URLs
+          - `avatar_larger.url_list`: Large avatar URLs
+        - `video`:
+          - `play_addr.url_list`: Video playback URLs
+          - `cover.url_list`: Video cover URLs
+          - `dynamic_cover.url_list`: Dynamic cover URLs
+          - `origin_cover.url_list`: Original cover URLs
+          - `width`: Width in pixels
+          - `height`: Height in pixels
+          - `ratio`: Resolution ratio (e.g., 540p)
+          - `duration`: Duration in milliseconds
+          - `download_addr.url_list`: Download URLs with watermark
+        - `statistics`:
+          - `comment_count`: Number of comments
+          - `digg_count`: Number of likes
+          - `share_count`: Number of shares
+          - `play_count`: Number of plays
+          - `collect_count`: Number of collections
+        - `cha_list`:
+          - `cha_name`: Hashtag name
+          - `share_url`: Hashtag share link
+        - `music`:
+          - `id_str`: Music ID
+          - `title`: Music title
+          - `author`: Music creator name
+          - `play_url.url_list`: List of music playback URLs
+        - `status`:
+          - `is_delete`: Whether deleted
+          - `is_private`: Whether private
+          - `allow_share`: Allow sharing
+          - `allow_comment`: Allow commenting
+        - `share_url`: External video share link
+
+    Args:
+        body (DiscussSearchRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return sync_detailed(
+        client=client,
+        body=body,
+    ).parsed
+
+
+async def asyncio_detailed(
+    *,
+    client: AuthenticatedClient,
+    body: DiscussSearchRequest,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取讨论搜索/Fetch discussion search
+
+     # [中文]
+    ### 用途:
+    - 获取抖音 App 中讨论区/问答内容的搜索结果。
+    - 支持关键词、排序方式、发布时间、内容类型等筛选条件。
+
+    ### 备注:
+    - 此接口专注于讨论区内容搜索（如问答讨论视频），不包含其他类型的内容。
+    - 初次请求时 `cursor` 传入 0，`search_id` 传空字符串。
+    - 返回内容包括视频信息、作者信息、播放信息、互动数据、话题标签等。
+
+    ### 参数:
+    - keyword: 搜索关键词，例如 \"出国留学\"
+    - cursor: 翻页游标（首次请求传 0，翻页时使用上次响应的 cursor）
+    - sort_type: 排序方式
+      - `0`: 综合排序
+      - `1`: 最多点赞
+      - `2`: 最新发布
+    - publish_time: 发布时间筛选
+      - `0`: 不限
+      - `1`: 最近一天
+      - `7`: 最近一周
+      - `180`: 最近半年
+    - filter_duration: 视频时长筛选
+      - `0`: 不限
+      - `0-1`: 1 分钟以内
+      - `1-5`: 1-5 分钟
+      - `5-10000`: 5 分钟以上
+    - content_type: 内容类型筛选
+      - `0`: 不限
+      - `1`: 视频
+      - `2`: 图片
+      - `3`: 文章
+    - search_id: 搜索ID（分页时使用）
+
+    ### 请求体示例：
+    ```json
+    payload = {
+        \"keyword\": \"出国留学\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### 返回（部分常用字段，实际返回字段更多，一切以实际响应为准）:
+    - `data`: 搜索结果列表
+      - `type`: 结果类型（一般为 `1`）
+      - `aweme_info`: 视频信息
+        - `aweme_id`: 视频ID
+        - `desc`: 视频描述内容
+        - `author`: 作者信息
+          - `uid`: 用户唯一ID
+          - `nickname`: 用户昵称
+          - `is_verified`: 是否认证用户
+          - `region`: 用户地区
+          - `avatar_thumb.url_list`: 缩略头像列表
+          - `avatar_medium.url_list`: 中等尺寸头像列表
+          - `avatar_larger.url_list`: 高清头像列表
+        - `video`: 视频播放与封面信息
+          - `play_addr.url_list`: 播放地址列表
+          - `cover.url_list`: 视频封面列表
+          - `dynamic_cover.url_list`: 动态封面列表
+          - `origin_cover.url_list`: 原始封面列表
+          - `width`: 视频宽度（像素）
+          - `height`: 视频高度（像素）
+          - `ratio`: 视频分辨率比例（如540p）
+          - `duration`: 视频时长（毫秒）
+          - `download_addr.url_list`: 带水印下载地址
+        - `statistics`: 视频数据
+          - `comment_count`: 评论数
+          - `digg_count`: 点赞数
+          - `share_count`: 分享数
+          - `play_count`: 播放次数
+          - `collect_count`: 收藏次数
+        - `cha_list`: 话题标签
+          - `cha_name`: 标签名称
+          - `share_url`: 标签分享链接
+        - `music`: 音乐信息
+          - `id_str`: 音乐ID
+          - `title`: 音乐标题
+          - `author`: 音乐作者昵称
+          - `play_url.url_list`: 音乐播放链接列表
+        - `status`: 视频状态
+          - `is_delete`: 是否被删除
+          - `is_private`: 是否设为私密
+          - `allow_share`: 是否允许分享
+          - `allow_comment`: 是否允许评论
+        - `share_url`: 视频外部分享链接
+
+    # [English]
+    ### Purpose:
+    - Fetch discussion/Q&A search results from Douyin App.
+    - Supports filtering by keyword, sort type, publish time, content type, etc.
+
+    ### Notes:
+    - This API focuses on discussion and Q&A content, not including other content types.
+    - Set `cursor` to 0 and `search_id` to an empty string for the first request.
+    - The response includes video details, author info, playback info, statistics, hashtags, etc.
+
+    ### Parameters:
+    - keyword: Search keyword, e.g., \"study abroad\"
+    - cursor: Pagination cursor (0 for first page, use the last response cursor for subsequent pages)
+    - sort_type: Sorting method
+      - `0`: Comprehensive
+      - `1`: Most likes
+      - `2`: Latest
+    - publish_time: Publish time filter
+      - `0`: Unlimited
+      - `1`: Last day
+      - `7`: Last week
+      - `180`: Last half year
+    - filter_duration: Video duration filter
+      - `0`: Unlimited
+      - `0-1`: Within 1 minute
+      - `1-5`: 1 to 5 minutes
+      - `5-10000`: More than 5 minutes
+    - content_type: Content type filter
+      - `0`: Unlimited
+      - `1`: Video
+      - `2`: Picture
+      - `3`: Article
+    - search_id: Search ID used for pagination
+
+    ### Request Body Example:
+    ```json
+    payload = {
+        \"keyword\": \"study abroad\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### Response (common fields, actual response may contain more fields):
+    - `data`: List of search result items
+      - `type`: Result type (usually `1`)
+      - `aweme_info`: Video information
+        - `aweme_id`: Video ID
+        - `desc`: Description
+        - `author`:
+          - `uid`: User ID
+          - `nickname`: User nickname
+          - `is_verified`: Verified user or not
+          - `region`: User region
+          - `avatar_thumb.url_list`: Thumbnail avatar URLs
+          - `avatar_medium.url_list`: Medium avatar URLs
+          - `avatar_larger.url_list`: Large avatar URLs
+        - `video`:
+          - `play_addr.url_list`: Video playback URLs
+          - `cover.url_list`: Video cover URLs
+          - `dynamic_cover.url_list`: Dynamic cover URLs
+          - `origin_cover.url_list`: Original cover URLs
+          - `width`: Width in pixels
+          - `height`: Height in pixels
+          - `ratio`: Resolution ratio (e.g., 540p)
+          - `duration`: Duration in milliseconds
+          - `download_addr.url_list`: Download URLs with watermark
+        - `statistics`:
+          - `comment_count`: Number of comments
+          - `digg_count`: Number of likes
+          - `share_count`: Number of shares
+          - `play_count`: Number of plays
+          - `collect_count`: Number of collections
+        - `cha_list`:
+          - `cha_name`: Hashtag name
+          - `share_url`: Hashtag share link
+        - `music`:
+          - `id_str`: Music ID
+          - `title`: Music title
+          - `author`: Music creator name
+          - `play_url.url_list`: List of music playback URLs
+        - `status`:
+          - `is_delete`: Whether deleted
+          - `is_private`: Whether private
+          - `allow_share`: Allow sharing
+          - `allow_comment`: Allow commenting
+        - `share_url`: External video share link
+
+    Args:
+        body (DiscussSearchRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        body=body,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    *,
+    client: AuthenticatedClient,
+    body: DiscussSearchRequest,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取讨论搜索/Fetch discussion search
+
+     # [中文]
+    ### 用途:
+    - 获取抖音 App 中讨论区/问答内容的搜索结果。
+    - 支持关键词、排序方式、发布时间、内容类型等筛选条件。
+
+    ### 备注:
+    - 此接口专注于讨论区内容搜索（如问答讨论视频），不包含其他类型的内容。
+    - 初次请求时 `cursor` 传入 0，`search_id` 传空字符串。
+    - 返回内容包括视频信息、作者信息、播放信息、互动数据、话题标签等。
+
+    ### 参数:
+    - keyword: 搜索关键词，例如 \"出国留学\"
+    - cursor: 翻页游标（首次请求传 0，翻页时使用上次响应的 cursor）
+    - sort_type: 排序方式
+      - `0`: 综合排序
+      - `1`: 最多点赞
+      - `2`: 最新发布
+    - publish_time: 发布时间筛选
+      - `0`: 不限
+      - `1`: 最近一天
+      - `7`: 最近一周
+      - `180`: 最近半年
+    - filter_duration: 视频时长筛选
+      - `0`: 不限
+      - `0-1`: 1 分钟以内
+      - `1-5`: 1-5 分钟
+      - `5-10000`: 5 分钟以上
+    - content_type: 内容类型筛选
+      - `0`: 不限
+      - `1`: 视频
+      - `2`: 图片
+      - `3`: 文章
+    - search_id: 搜索ID（分页时使用）
+
+    ### 请求体示例：
+    ```json
+    payload = {
+        \"keyword\": \"出国留学\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### 返回（部分常用字段，实际返回字段更多，一切以实际响应为准）:
+    - `data`: 搜索结果列表
+      - `type`: 结果类型（一般为 `1`）
+      - `aweme_info`: 视频信息
+        - `aweme_id`: 视频ID
+        - `desc`: 视频描述内容
+        - `author`: 作者信息
+          - `uid`: 用户唯一ID
+          - `nickname`: 用户昵称
+          - `is_verified`: 是否认证用户
+          - `region`: 用户地区
+          - `avatar_thumb.url_list`: 缩略头像列表
+          - `avatar_medium.url_list`: 中等尺寸头像列表
+          - `avatar_larger.url_list`: 高清头像列表
+        - `video`: 视频播放与封面信息
+          - `play_addr.url_list`: 播放地址列表
+          - `cover.url_list`: 视频封面列表
+          - `dynamic_cover.url_list`: 动态封面列表
+          - `origin_cover.url_list`: 原始封面列表
+          - `width`: 视频宽度（像素）
+          - `height`: 视频高度（像素）
+          - `ratio`: 视频分辨率比例（如540p）
+          - `duration`: 视频时长（毫秒）
+          - `download_addr.url_list`: 带水印下载地址
+        - `statistics`: 视频数据
+          - `comment_count`: 评论数
+          - `digg_count`: 点赞数
+          - `share_count`: 分享数
+          - `play_count`: 播放次数
+          - `collect_count`: 收藏次数
+        - `cha_list`: 话题标签
+          - `cha_name`: 标签名称
+          - `share_url`: 标签分享链接
+        - `music`: 音乐信息
+          - `id_str`: 音乐ID
+          - `title`: 音乐标题
+          - `author`: 音乐作者昵称
+          - `play_url.url_list`: 音乐播放链接列表
+        - `status`: 视频状态
+          - `is_delete`: 是否被删除
+          - `is_private`: 是否设为私密
+          - `allow_share`: 是否允许分享
+          - `allow_comment`: 是否允许评论
+        - `share_url`: 视频外部分享链接
+
+    # [English]
+    ### Purpose:
+    - Fetch discussion/Q&A search results from Douyin App.
+    - Supports filtering by keyword, sort type, publish time, content type, etc.
+
+    ### Notes:
+    - This API focuses on discussion and Q&A content, not including other content types.
+    - Set `cursor` to 0 and `search_id` to an empty string for the first request.
+    - The response includes video details, author info, playback info, statistics, hashtags, etc.
+
+    ### Parameters:
+    - keyword: Search keyword, e.g., \"study abroad\"
+    - cursor: Pagination cursor (0 for first page, use the last response cursor for subsequent pages)
+    - sort_type: Sorting method
+      - `0`: Comprehensive
+      - `1`: Most likes
+      - `2`: Latest
+    - publish_time: Publish time filter
+      - `0`: Unlimited
+      - `1`: Last day
+      - `7`: Last week
+      - `180`: Last half year
+    - filter_duration: Video duration filter
+      - `0`: Unlimited
+      - `0-1`: Within 1 minute
+      - `1-5`: 1 to 5 minutes
+      - `5-10000`: More than 5 minutes
+    - content_type: Content type filter
+      - `0`: Unlimited
+      - `1`: Video
+      - `2`: Picture
+      - `3`: Article
+    - search_id: Search ID used for pagination
+
+    ### Request Body Example:
+    ```json
+    payload = {
+        \"keyword\": \"study abroad\",
+        \"cursor\": 0,
+        \"sort_type\": 0,
+        \"publish_time\": 0,
+        \"filter_duration\": 0,
+        \"content_type\": 0,
+        \"search_id\": \"\"
+    }
+    ```
+
+    ### Response (common fields, actual response may contain more fields):
+    - `data`: List of search result items
+      - `type`: Result type (usually `1`)
+      - `aweme_info`: Video information
+        - `aweme_id`: Video ID
+        - `desc`: Description
+        - `author`:
+          - `uid`: User ID
+          - `nickname`: User nickname
+          - `is_verified`: Verified user or not
+          - `region`: User region
+          - `avatar_thumb.url_list`: Thumbnail avatar URLs
+          - `avatar_medium.url_list`: Medium avatar URLs
+          - `avatar_larger.url_list`: Large avatar URLs
+        - `video`:
+          - `play_addr.url_list`: Video playback URLs
+          - `cover.url_list`: Video cover URLs
+          - `dynamic_cover.url_list`: Dynamic cover URLs
+          - `origin_cover.url_list`: Original cover URLs
+          - `width`: Width in pixels
+          - `height`: Height in pixels
+          - `ratio`: Resolution ratio (e.g., 540p)
+          - `duration`: Duration in milliseconds
+          - `download_addr.url_list`: Download URLs with watermark
+        - `statistics`:
+          - `comment_count`: Number of comments
+          - `digg_count`: Number of likes
+          - `share_count`: Number of shares
+          - `play_count`: Number of plays
+          - `collect_count`: Number of collections
+        - `cha_list`:
+          - `cha_name`: Hashtag name
+          - `share_url`: Hashtag share link
+        - `music`:
+          - `id_str`: Music ID
+          - `title`: Music title
+          - `author`: Music creator name
+          - `play_url.url_list`: List of music playback URLs
+        - `status`:
+          - `is_delete`: Whether deleted
+          - `is_private`: Whether private
+          - `allow_share`: Allow sharing
+          - `allow_comment`: Allow commenting
+        - `share_url`: External video share link
+
+    Args:
+        body (DiscussSearchRequest):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return (
+        await asyncio_detailed(
+            client=client,
+            body=body,
+        )
+    ).parsed

@@ -1,0 +1,251 @@
+from http import HTTPStatus
+from typing import Any, Optional, Union
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.http_validation_error import HTTPValidationError
+from ...models.response_model import ResponseModel
+from ...types import UNSET, Response
+
+
+def _get_kwargs(
+    *,
+    product_id: str,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+
+    params["product_id"] = product_id
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
+    _kwargs: dict[str, Any] = {
+        "method": "get",
+        "url": "/api/v1/tiktok/app/v3/fetch_product_detail",
+        "params": params,
+    }
+
+    return _kwargs
+
+
+def _parse_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    if response.status_code == 200:
+        response_200 = ResponseModel.from_dict(response.json())
+
+        return response_200
+    if response.status_code == 422:
+        response_422 = HTTPValidationError.from_dict(response.json())
+
+        return response_422
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: Union[AuthenticatedClient, Client], response: httpx.Response
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+def sync_detailed(
+    *,
+    client: AuthenticatedClient,
+    product_id: str,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取商品详情数据（即将弃用，使用 fetch_product_detail_v2 代替）/Get product detail data (will be deprecated, use
+    fetch_product_detail_v2 instead)
+
+     # [中文]
+    ### 用途:
+    - 获取商品详情数据
+    - 即将弃用，使用 fetch_product_detail_v2 代替
+    ### 参数:
+    - product_id: 商品id，有时候需要从product_id_str字段中获取。
+    ### 返回:
+    - 商品详情数据
+
+    # [English]
+    ### Purpose:
+    - Get product detail data
+    - Will be deprecated, use fetch_product_detail_v2 instead
+    ### Parameters:
+    - product_id: Product id, sometimes need to get from the product_id_str field.
+    ### Return:
+    - Product detail data
+
+    # [示例/Example]
+    product_id = \"1729385239712731370\"
+
+    Args:
+        product_id (str): 商品id/Product id
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        product_id=product_id,
+    )
+
+    response = client.get_httpx_client().request(
+        **kwargs,
+    )
+
+    return _build_response(client=client, response=response)
+
+
+def sync(
+    *,
+    client: AuthenticatedClient,
+    product_id: str,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取商品详情数据（即将弃用，使用 fetch_product_detail_v2 代替）/Get product detail data (will be deprecated, use
+    fetch_product_detail_v2 instead)
+
+     # [中文]
+    ### 用途:
+    - 获取商品详情数据
+    - 即将弃用，使用 fetch_product_detail_v2 代替
+    ### 参数:
+    - product_id: 商品id，有时候需要从product_id_str字段中获取。
+    ### 返回:
+    - 商品详情数据
+
+    # [English]
+    ### Purpose:
+    - Get product detail data
+    - Will be deprecated, use fetch_product_detail_v2 instead
+    ### Parameters:
+    - product_id: Product id, sometimes need to get from the product_id_str field.
+    ### Return:
+    - Product detail data
+
+    # [示例/Example]
+    product_id = \"1729385239712731370\"
+
+    Args:
+        product_id (str): 商品id/Product id
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return sync_detailed(
+        client=client,
+        product_id=product_id,
+    ).parsed
+
+
+async def asyncio_detailed(
+    *,
+    client: AuthenticatedClient,
+    product_id: str,
+) -> Response[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取商品详情数据（即将弃用，使用 fetch_product_detail_v2 代替）/Get product detail data (will be deprecated, use
+    fetch_product_detail_v2 instead)
+
+     # [中文]
+    ### 用途:
+    - 获取商品详情数据
+    - 即将弃用，使用 fetch_product_detail_v2 代替
+    ### 参数:
+    - product_id: 商品id，有时候需要从product_id_str字段中获取。
+    ### 返回:
+    - 商品详情数据
+
+    # [English]
+    ### Purpose:
+    - Get product detail data
+    - Will be deprecated, use fetch_product_detail_v2 instead
+    ### Parameters:
+    - product_id: Product id, sometimes need to get from the product_id_str field.
+    ### Return:
+    - Product detail data
+
+    # [示例/Example]
+    product_id = \"1729385239712731370\"
+
+    Args:
+        product_id (str): 商品id/Product id
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Union[HTTPValidationError, ResponseModel]]
+    """
+
+    kwargs = _get_kwargs(
+        product_id=product_id,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    *,
+    client: AuthenticatedClient,
+    product_id: str,
+) -> Optional[Union[HTTPValidationError, ResponseModel]]:
+    r"""获取商品详情数据（即将弃用，使用 fetch_product_detail_v2 代替）/Get product detail data (will be deprecated, use
+    fetch_product_detail_v2 instead)
+
+     # [中文]
+    ### 用途:
+    - 获取商品详情数据
+    - 即将弃用，使用 fetch_product_detail_v2 代替
+    ### 参数:
+    - product_id: 商品id，有时候需要从product_id_str字段中获取。
+    ### 返回:
+    - 商品详情数据
+
+    # [English]
+    ### Purpose:
+    - Get product detail data
+    - Will be deprecated, use fetch_product_detail_v2 instead
+    ### Parameters:
+    - product_id: Product id, sometimes need to get from the product_id_str field.
+    ### Return:
+    - Product detail data
+
+    # [示例/Example]
+    product_id = \"1729385239712731370\"
+
+    Args:
+        product_id (str): 商品id/Product id
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Union[HTTPValidationError, ResponseModel]
+    """
+
+    return (
+        await asyncio_detailed(
+            client=client,
+            product_id=product_id,
+        )
+    ).parsed
